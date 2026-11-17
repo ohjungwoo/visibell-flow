@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visibell 포트·연결 흐름도</title>
+<!-- 포트·연결 흐름도 1장: 어떤 기기의 신호가 매장 PC 의 어느 포트로 들어와 어디로 나가는지. 포트는 기본값(VISIBELL_PORT, VISIBELL_MQTT_PORT 로 바뀐다). -->
+<style>
+@font-face { font-family: "Paperlogy"; font-weight: 400; font-display: swap; src: url("vendor/Paperlogy-4Regular.woff2") format("woff2"); }
+@font-face { font-family: "Paperlogy"; font-weight: 600; font-display: swap; src: url("vendor/Paperlogy-6SemiBold.woff2") format("woff2"); }
+@font-face { font-family: "Paperlogy"; font-weight: 800; font-display: swap; src: url("vendor/Paperlogy-8ExtraBold.woff2") format("woff2"); }
+:root {
+  --bg: #10141b; --panel: #181e28; --panel2: #212a38; --line: rgba(255,255,255,.12); --ink: #f3efe6; --mute: #a9a393; --brass: #ffb224;
+  --c-delivery_order: #ff8a00; --c-call_staff: #e53935; --c-door: #1e88e5; --c-menu_check: #43a047;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); }
+body { font-family: "Paperlogy", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif; line-height: 1.5; word-break: keep-all; overflow-wrap: break-word; -webkit-font-smoothing: antialiased; padding: clamp(14px, 2.4vw, 28px); }
+h1 { margin: 0; font-size: clamp(20px, 2.6vw, 30px); font-weight: 800; letter-spacing: -.02em; }
+.sub { margin: 4px 0 0; color: var(--mute); font-size: clamp(13px, 1.3vw, 15px); }
+b { font-weight: 600; color: var(--ink); }
+code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .92em; color: var(--brass); }
+
+/* 신호 고르기 */
+.routes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.routes button { display: inline-flex; align-items: center; gap: 8px; padding: 7px 13px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: transform .2s, border-color .2s, background .2s; }
+.routes button::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--rc); }
+.routes button:hover, .routes button.on { transform: translateY(-2px); border-color: var(--rc); background: var(--panel2); }
+.caption { margin-top: 10px; min-height: 3.1em; padding: 9px 14px; border-left: 3px solid var(--brass); background: rgba(255,255,255,.04); border-radius: 0 10px 10px 0; color: var(--mute); font-size: 14px; }
+
+/* 그림 */
+.stage { margin-top: 12px; overflow-x: auto; }
+svg#d { display: block; width: 100%; min-width: 900px; height: auto; font-family: inherit; }
+.zone { fill: rgba(255,255,255,.025); stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 6 6; }
+.zone.hub { fill: rgba(255,178,36,.05); stroke: rgba(255,178,36,.45); stroke-dasharray: none; }
+.zlabel { fill: var(--mute); font-size: 14px; font-weight: 600; letter-spacing: .04em; }
+.zlabel.hub { fill: var(--brass); }
+.n rect { fill: var(--panel); stroke: var(--nc, var(--line)); stroke-width: 1.5; transition: fill .2s, stroke-width .2s; }
+.n .t { fill: var(--ink); font-size: 15.5px; font-weight: 600; }
+.n .s { fill: var(--mute); font-size: 12.5px; }
+.n .p { fill: var(--brass); font-size: 12.5px; font-weight: 600; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+.n.port rect { fill: #2a2413; stroke: rgba(255,178,36,.6); }
+.n[data-route] { cursor: pointer; }
+.e { fill: none; stroke: rgba(255,255,255,.3); stroke-width: 2; stroke-dasharray: 3 9; stroke-linecap: round; animation: run 1.2s linear infinite; transition: opacity .2s, stroke-width .2s; }
+.e.soon { stroke-dasharray: 8 8; animation: none; }
+@keyframes run { to { stroke-dashoffset: -12; } }
+.el { fill: var(--mute); font-size: 12px; font-weight: 600; paint-order: stroke; stroke: var(--bg); stroke-width: 5px; transition: opacity .2s; }
+svg.pick .n, svg.pick .e, svg.pick .el { opacity: .22; }
+svg.pick .n.hot, svg.pick .e.hot, svg.pick .el.hot { opacity: 1; }
+svg.pick .e.hot { stroke: var(--rc, var(--brass)); stroke-width: 3.5; }
+svg.pick .n.hot rect { fill: var(--panel2); stroke-width: 2.5; }
+svg.pick .n.port.hot rect { fill: #3a3114; }
+
+/* 포트 표 */
+table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--mute); font-weight: 600; font-size: 12.5px; letter-spacing: .04em; }
+td:first-child { white-space: nowrap; }
+.note { color: var(--mute); font-size: 12.5px; margin-top: 8px; }
+@media (prefers-reduced-motion: reduce) { .e { animation: none; } * { transition: none !important; } }
+</style></head>
+<body>
+<h1>포트·연결 흐름도</h1>
+<p class="sub">기기가 보낸 신호가 매장 PC의 <b>어느 포트</b>로 들어와 <b>어디로</b> 나가는지 한 장으로 봅니다.</p>
+<div class="routes" id="routes"></div>
+<p class="caption" id="caption"></p>
+<div class="stage"><svg id="d" viewBox="0 0 1240 790" role="img" aria-label="Visibell 포트·연결 흐름도">
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs>
+  <rect class="zone" x="310" y="40" width="630" height="720" rx="18"/><text class="zlabel" x="330" y="70">매장 PC (노트북)</text>
+  <rect class="zone hub" x="330" y="232" width="590" height="508" rx="14"/><text class="zlabel hub" x="350" y="259">Visibell 허브 · 프로그램 1개</text>
+  <text class="zlabel" x="16" y="70">보내는 기기</text><text class="zlabel" x="1020" y="70">받는 화면·기기</text>
+  <g id="edges"></g><g id="nodes"></g><g id="labels"></g>
+</svg></div>
+
+<table>
+  <thead><tr><th>주소:포트</th><th>여는 프로그램</th><th>들어오는 것</th><th>닿는 범위</th></tr></thead>
+  <tbody>
+    <tr><td><code>0.0.0.0:8787</code> HTTP·WebSocket</td><td>Visibell 허브</td><td>배달앱 기기 알림, 스마트워치 등록, Admin·사이니지 화면 접속</td><td>매장 Wi-Fi 안의 모든 기기</td></tr>
+    <tr><td><code>127.0.0.1:1883</code> MQTT</td><td>Visibell 허브 (내장)</td><td>zigbee2mqtt가 넘기는 호출벨·센서 신호</td><td>이 PC 안에서만</td></tr>
+    <tr><td><code>COM 포트</code> USB 시리얼</td><td>zigbee2mqtt</td><td>USB 수신기가 받은 Zigbee 신호</td><td>이 PC에 꽂힌 수신기</td></tr>
+    <tr><td><code>→ fcm.googleapis.com:443</code> HTTPS</td><td>Visibell 허브 (나가는 연결)</td><td>— (스마트워치로 보낼 알림이 나감)</td><td>인터넷</td></tr>
+  </tbody>
+</table>
+<p class="note">포트는 기본값입니다. <code>VISIBELL_PORT</code>, <code>VISIBELL_MQTT_PORT</code>로 바꿀 수 있습니다. 기록·설정은 <code>data/visibell.db</code> 파일에 저장됩니다.</p>
+
+<script>
+const NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs, parent, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return parent.appendChild(e); };
+
+// 상자: [id, x, y, 너비, 높이, 이름, 설명, 포트 글자(선택)]. route 가 있으면 대면 그 신호의 길이 켜진다.
+const NODES = [
+  { id: 'bell', x: 16, y: 96, w: 210, h: 58, t: '호출벨', s: 'Zigbee 무선으로 보냄', c: 'var(--c-call_staff)', route: 'zig' },
+  { id: 'door', x: 16, y: 168, w: 210, h: 58, t: '문열림 센서', s: 'Zigbee 무선으로 보냄', c: 'var(--c-door)', route: 'zig' },
+  { id: 'tablet', x: 16, y: 520, w: 210, h: 58, t: '배달앱 기기', s: 'POST /api/notifications', c: 'var(--c-delivery_order)', route: 'tablet' },
+  { id: 'watchreg', x: 16, y: 596, w: 210, h: 58, t: '스마트워치 (등록)', s: 'POST /api/devices', c: 'var(--c-menu_check)', route: 'reg' },
+  { id: 'admin', x: 16, y: 672, w: 210, h: 58, t: 'Admin 테스트', s: 'POST /api/events', c: '#a9a393', route: 'test' },
+
+  { id: 'usb', x: 330, y: 110, w: 170, h: 70, t: 'USB 수신기', s: 'Zigbee 동글', p: 'COM 포트' },
+  { id: 'z2m', x: 560, y: 110, w: 190, h: 70, t: 'zigbee2mqtt', s: '별도 프로그램', p: 'COM → MQTT' },
+  { id: 'mqtt', x: 560, y: 274, w: 190, h: 70, t: 'MQTT 받는 곳', s: 'PC 안에서만 열림', p: '127.0.0.1:1883', port: true },
+  { id: 'proc', x: 560, y: 424, w: 190, h: 80, t: '알림 처리', s: '종류 정하기·겹침 거르기' },
+  { id: 'db', x: 350, y: 424, w: 150, h: 80, t: '저장', s: 'SQLite 파일', p: 'data/visibell.db' },
+  { id: 'push', x: 790, y: 424, w: 115, h: 80, t: '워치 발송', s: '밖으로 나감', p: 'FCM' },
+  { id: 'web', x: 350, y: 610, w: 555, h: 80, t: '웹 서버 · HTTP + WebSocket', s: '매장 Wi-Fi 안의 기기가 접속', p: '0.0.0.0:8787', port: true },
+
+  { id: 'fcm', x: 1020, y: 270, w: 204, h: 58, t: 'Google FCM 서버', s: 'fcm.googleapis.com:443' },
+  { id: 'watch', x: 1020, y: 386, w: 204, h: 58, t: '스마트워치', s: '인터넷으로 알림 받음', c: 'var(--c-menu_check)' },
+  { id: 'board', x: 1020, y: 540, w: 204, h: 58, t: '사이니지 (직원용)', s: '/board · /ws/board' },
+  { id: 'ad', x: 1020, y: 616, w: 204, h: 58, t: '사이니지 (손님용)', s: '/ad · /ws/board', route: 'img' },
+  { id: 'adminv', x: 1020, y: 692, w: 204, h: 58, t: 'Admin 화면', s: '/admin · /ws/board' },
+];
+// 선: [id, 경로, 글자, 글자 위치]
+const EDGES = [
+  { id: 'e1', d: 'M226,125 C275,125 285,138 330,138', label: 'Zigbee 무선', lx: 232, ly: 88 },
+  { id: 'e1b', d: 'M226,197 C275,197 285,152 330,152' },
+  { id: 'e2', d: 'M500,145 L560,145', label: 'USB', lx: 517, ly: 134 },
+  { id: 'e3', d: 'M655,180 L655,274', label: 'MQTT', lx: 666, ly: 214 },
+  { id: 'e4', d: 'M655,344 L655,424' },
+  { id: 'e5', d: 'M620,610 L620,504' },
+  { id: 'e6', d: 'M690,504 L690,610' },
+  { id: 'e7', d: 'M560,464 L500,464' },
+  { id: 'e8', d: 'M750,464 L790,464' },
+  { id: 'e9', d: 'M905,450 C965,450 960,299 1020,299', label: 'HTTPS :443', lx: 952, ly: 362 },
+  { id: 'e10', d: 'M1122,328 L1122,386', label: '인터넷', lx: 1134, ly: 362 },
+  { id: 'e11', d: 'M226,549 C280,549 290,636 350,636', soon: true, label: 'HTTP :8787', lx: 222, ly: 506 },
+  { id: 'e12', d: 'M226,625 C280,625 290,650 350,650' },
+  { id: 'e13', d: 'M226,701 C280,701 290,664 350,664' },
+  { id: 'e14', d: 'M905,636 C965,636 960,569 1020,569', label: 'WebSocket :8787', lx: 950, ly: 526 },
+  { id: 'e15', d: 'M905,650 C965,650 960,645 1020,645' },
+  { id: 'e16', d: 'M905,664 C965,664 960,721 1020,721' },
+  { id: 'e17', d: 'M425,610 L425,504' },
+];
+// 신호별로 지나는 상자와 선
+const OUT_N = ['proc', 'db', 'web', 'push', 'fcm', 'watch', 'board', 'adminv'], OUT_E = ['e7', 'e6', 'e8', 'e9', 'e10', 'e14', 'e16'];
+const ROUTES = {
+  zig: { name: '호출벨·센서', color: 'var(--c-call_staff)', n: ['bell', 'door', 'usb', 'z2m', 'mqtt', ...OUT_N], e: ['e1', 'e1b', 'e2', 'e3', 'e4', ...OUT_E],
+    text: '<b>호출벨·센서</b> → Zigbee 무선 → USB 수신기(<code>COM 포트</code>) → zigbee2mqtt → MQTT <code>127.0.0.1:1883</code> → 알림 처리·저장 → 사이니지는 WebSocket <code>:8787</code>, 스마트워치는 FCM(<code>HTTPS 443</code>)으로 나갑니다.' },
+  tablet: { name: '배달앱 주문 (준비 중)', color: 'var(--c-delivery_order)', n: ['tablet', ...OUT_N], e: ['e11', 'e5', ...OUT_E],
+    text: '<b>배달앱 기기</b> → 매장 Wi-Fi → HTTP <code>:8787</code> <code>POST /api/notifications</code> → 알림 처리·저장 → 사이니지·스마트워치. 기기 쪽 앱은 준비 중입니다.' },
+  test: { name: 'Admin 테스트 알림', color: '#a9a393', n: ['admin', ...OUT_N], e: ['e13', 'e5', ...OUT_E],
+    text: '<b>Admin 테스트</b> → HTTP <code>:8787</code> <code>POST /api/events</code> → 알림 처리·저장 → 사이니지·스마트워치. 실제 알림과 같은 길을 지납니다.' },
+  reg: { name: '스마트워치 등록', color: 'var(--c-menu_check)', n: ['watchreg', 'web', 'db'], e: ['e12', 'e17'],
+    text: '<b>스마트워치</b>가 처음 켜질 때 HTTP <code>:8787</code> <code>POST /api/devices</code>로 자기 주소(FCM 토큰)를 등록합니다. 이후 알림은 PC가 아니라 Google FCM을 거쳐 받습니다.' },
+  img: { name: '손님용 이미지', color: 'var(--c-door)', n: ['ad', 'web', 'db'], e: ['e15', 'e17'],
+    text: '<b>사이니지 (손님용)</b>은 <code>:8787</code>의 <code>/ad</code>를 열고 WebSocket <code>/ws/board</code>로 이미지 목록을 받아 돌려 보여 줍니다. 알림은 가지 않습니다.' },
+};
+const DEFAULT_TEXT = '위 버튼이나 왼쪽 기기에 마우스를 대면 그 신호가 지나는 길과 포트가 켜집니다.';
+
+const svg = document.getElementById('d'), gE = document.getElementById('edges'), gN = document.getElementById('nodes'), gL = document.getElementById('labels');
+for (const e of EDGES) {
+  el('path', { class: `e${e.soon ? ' soon' : ''}`, d: e.d, 'data-id': e.id, 'marker-end': 'url(#arrow)' }, gE);
+  if (e.label) el('text', { class: 'el', x: e.lx, y: e.ly, 'data-id': e.id }, gL, e.label);
+}
+for (const n of NODES) {
+  const g = el('g', { class: `n${n.port ? ' port' : ''}`, 'data-id': n.id, ...(n.route ? { 'data-route': n.route, tabindex: 0 } : {}) }, gN);
+  if (n.c) g.style.setProperty('--nc', n.c);
+  el('rect', { x: n.x, y: n.y, width: n.w, height: n.h, rx: 12 }, g);
+  const lines = [['t', n.t], ['s', n.s], ['p', n.p]].filter(l => l[1]);
+  const step = 19, top = n.y + n.h / 2 - (lines.length - 1) * step / 2 + 5;
+  lines.forEach(([cls, text], i) => el('text', { class: cls, x: n.x + 14, y: top + i * step }, g, text));
+}
+const chips = document.getElementById('routes'), caption = document.getElementById('caption');
+chips.innerHTML = Object.entries(ROUTES).map(([id, r]) => `<button type="button" data-route="${id}" style="--rc:${r.color}">${r.name}</button>`).join('');
+
+let pinned = null;   // 눌러서 고정한 신호
+function light(id) {
+  const r = ROUTES[id];
+  svg.classList.toggle('pick', !!r);
+  svg.style.setProperty('--rc', r ? r.color : '');
+  for (const g of svg.querySelectorAll('.n')) g.classList.toggle('hot', !!r && r.n.includes(g.dataset.id));
+  for (const p of svg.querySelectorAll('.e, .el')) p.classList.toggle('hot', !!r && r.e.includes(p.dataset.id));
+  for (const b of chips.children) b.classList.toggle('on', b.dataset.route === id);
+  caption.innerHTML = r ? r.text : DEFAULT_TEXT;
+}
+for (const t of [...chips.children, ...svg.querySelectorAll('.n[data-route]')]) {
+  t.addEventListener('pointerenter', () => light(t.dataset.route));
+  t.addEventListener('pointerleave', () => light(pinned));
+  t.addEventListener('focus', () => light(t.dataset.route));
+  t.addEventListener('blur', () => light(pinned));
+  t.addEventListener('click', () => { pinned = pinned === t.dataset.route ? null : t.dataset.route; light(pinned); });
+}
+light(null);
+
+// 알림 종류 색을 Admin 에 저장된 값으로 맞춘다.
+fetch('/api/event-types').then(r => r.ok ? r.json() : []).then(types => { for (const t of types) document.documentElement.style.setProperty(`--c-${t.type}`, t.color); }).catch(() => {});
+</script>
+</body></html>
