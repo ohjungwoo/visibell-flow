@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Selah 전체 흐름도: 블로그 수집 → 맥 → GitHub Actions → Cloudflare(R2·Worker·D1·Pages) → 웹·안드로이드 앱. 구조가 바뀌면 개발-규약서와 함께 고친다. -->
+<title>Selah 전체 흐름도</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* 레이아웃: 왼쪽→오른쪽 4구역(바깥 · 맥/GitHub · Cloudflare · 보는 사람). 흐름 버튼을 대면 그 길만 켜진다. */
+:root {
+  --bg: #eef1f5; --panel: #ffffff; --panel2: #e4e9f1; --line: rgba(20,30,50,.15); --ink: #1b2230; --mute: #5c6575;
+  --accent: #a8650a; --port: #fff3dc; --port-hot: #ffe6b3; --edge: rgba(20,30,50,.34); --zone: rgba(20,30,50,.025);
+  --hub: rgba(168,101,10,.05); --hub-line: rgba(168,101,10,.45); --cap: rgba(20,30,50,.04);
+  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r-sync: #e07b00; --r-view: #1e88e5; --r-app: #00897b; --r-login: #8e44ad; --r-rec: #d81b60; --r-up: #2e7d32; --r-admin: #d32f2f; --r-deploy: #607d8b;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #10141b; --panel: #181e28; --panel2: #232c3b; --line: rgba(255,255,255,.12); --ink: #f3efe6; --mute: #a9a393;
+  --accent: #ffb224; --port: #2a2413; --port-hot: #3a3114; --edge: rgba(255,255,255,.3); --zone: rgba(255,255,255,.025);
+  --hub: rgba(255,178,36,.05); --hub-line: rgba(255,178,36,.45); --cap: rgba(255,255,255,.04);
+  --r-sync: #ff8a00; --r-view: #42a5f5; --r-app: #26c6a6; --r-login: #b97ae0; --r-rec: #f06292; --r-up: #5cc05f; --r-admin: #ef5350; --r-deploy: #90a4ae;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #10141b; --panel: #181e28; --panel2: #232c3b; --line: rgba(255,255,255,.12); --ink: #f3efe6; --mute: #a9a393;
+  --accent: #ffb224; --port: #2a2413; --port-hot: #3a3114; --edge: rgba(255,255,255,.3); --zone: rgba(255,255,255,.025);
+  --hub: rgba(255,178,36,.05); --hub-line: rgba(255,178,36,.45); --cap: rgba(255,255,255,.04);
+  --r-sync: #ff8a00; --r-view: #42a5f5; --r-app: #26c6a6; --r-login: #b97ae0; --r-rec: #f06292; --r-up: #5cc05f; --r-admin: #ef5350; --r-deploy: #90a4ae;
+  color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-body); line-height: 1.55; word-break: keep-all; overflow-wrap: break-word; -webkit-font-smoothing: antialiased;
+  padding-block: clamp(14px, 2.4vw, 28px); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1440px; margin: 0 auto; }
+h1 { margin: 0; font-size: clamp(21px, 2.6vw, 30px); font-weight: 700; letter-spacing: -.02em; text-wrap: balance; }
+.sub { margin: 4px 0 0; color: var(--mute); font-size: clamp(13px, 1.3vw, 15px); }
+b { font-weight: 600; color: var(--ink); }
+code { font-family: var(--f-mono); font-size: .86em; color: var(--accent); }
+
+.routes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.routes button { display: inline-flex; align-items: center; gap: 8px; padding: 7px 13px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: transform .2s, border-color .2s, background .2s; }
+.routes button::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--rc); }
+.routes button:hover, .routes button.on { transform: translateY(-2px); border-color: var(--rc); background: var(--panel2); }
+.routes button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.caption { margin: 10px 0 0; min-height: 4.8em; padding: 9px 14px; border-left: 3px solid var(--accent); background: var(--cap); border-radius: 0 10px 10px 0; color: var(--mute); font-size: 14px; max-width: 110ch; }
+
+.stage { margin-top: 12px; overflow-x: auto; }
+svg#d { display: block; width: 100%; min-width: 1080px; height: auto; font-family: var(--f-body); }
+.zone { fill: var(--zone); stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 6 6; }
+.zone.hub { fill: var(--hub); stroke: var(--hub-line); stroke-dasharray: none; }
+.zlabel { fill: var(--mute); font-size: 14px; font-weight: 600; letter-spacing: .04em; }
+.zlabel.hub { fill: var(--accent); }
+.n rect { fill: var(--panel); stroke: var(--nc, var(--line)); stroke-width: 1.5; transition: fill .2s, stroke-width .2s; }
+.n .t { fill: var(--ink); font-size: 15px; font-weight: 600; }
+.n .s { fill: var(--mute); font-size: 12.5px; }
+.n .p, .n .k { fill: var(--accent); font-size: 12px; font-weight: 600; font-family: var(--f-mono); }
+.n .k { fill: var(--mute); font-weight: 500; }
+.n.port rect { fill: var(--port); stroke: var(--hub-line); }
+.n[data-route] { cursor: pointer; }
+.n[data-route]:focus-visible rect { stroke: var(--accent); stroke-width: 3; }
+.n:focus { outline: none; }
+.e { fill: none; stroke: var(--edge); stroke-width: 2; stroke-dasharray: 3 9; stroke-linecap: round; animation: run 1.2s linear infinite; transition: opacity .2s, stroke-width .2s; }
+@keyframes run { to { stroke-dashoffset: -12; } }
+.el { fill: var(--mute); font-size: 12px; font-weight: 600; paint-order: stroke; stroke: var(--bg); stroke-width: 5px; transition: opacity .2s; opacity: 0; }
+.el.always { opacity: 1; }
+svg.pick .n, svg.pick .e { opacity: .2; }
+svg.pick .el { opacity: 0; }
+svg.pick .n.hot, svg.pick .e.hot, svg.pick .el.hot { opacity: 1; }
+svg.pick .e.hot { stroke: var(--rc, var(--accent)); stroke-width: 3.5; }
+svg.pick .el.hot { fill: var(--ink); }
+svg.pick .n.hot rect { fill: var(--panel2); stroke-width: 2.5; }
+svg.pick .n.port.hot rect { fill: var(--port-hot); }
+
+h2 { margin: 26px 0 0; font-size: 17px; font-weight: 700; }
+.tbl { overflow-x: auto; margin-top: 8px; }
+table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--mute); font-weight: 600; font-size: 12.5px; letter-spacing: .04em; }
+td:first-child { white-space: nowrap; font-weight: 600; }
+.note { color: var(--mute); font-size: 12.5px; margin-top: 8px; max-width: 110ch; }
+@media (prefers-reduced-motion: reduce) { .e { animation: none; } * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<h1>Selah 전체 흐름도</h1>
+<p class="sub">블로그 악보가 <b>맥</b>에서 다듬어져 <b>Cloudflare</b>에 올라가고, <b>웹·안드로이드 앱</b>이 그걸 읽기까지를 한 장으로 봅니다.</p>
+<div class="routes" id="routes"></div>
+<p class="caption" id="caption"></p>
+<div class="stage"><svg id="d" viewBox="0 0 1400 790" role="img" aria-label="Selah 전체 흐름도">
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs>
+  <text class="zlabel" x="16" y="70">바깥</text>
+  <rect class="zone" x="260" y="40" width="400" height="470" rx="18"/><text class="zlabel" x="280" y="70">맥 · 수집과 개발</text>
+  <rect class="zone" x="260" y="550" width="400" height="220" rx="18"/><text class="zlabel" x="280" y="580">GitHub Actions · release.yml</text>
+  <rect class="zone hub" x="700" y="40" width="340" height="730" rx="18"/><text class="zlabel hub" x="720" y="70">Cloudflare · 운영</text>
+  <text class="zlabel" x="1140" y="70">보는 사람·기기</text>
+  <g id="edges"></g><g id="nodes"></g><g id="labels"></g>
+</svg></div>
+
+<h2>자리별로 하는 일</h2>
+<div class="tbl"><table>
+  <thead><tr><th>자리</th><th>무엇이 도나</th><th>하는 일</th><th>데이터</th></tr></thead>
+  <tbody>
+    <tr><td>맥</td><td><code>easyscore</code> 명령줄 도구(<code>crates/server</code>·<code>core</code>·<code>types</code>), 오르카 평일 예약</td><td>블로그 수집, 악보 다듬기(판별·로고·KaMU 지우기·가사 OCR), 겹치는 곡 합치기, R2 올리기, 올린 악보 백업. 화면은 띄우지 않는다</td><td><code>data/easyscore.db</code>, <code>data/images/</code>, <code>data/original/</code>, <code>data/uploads/</code></td></tr>
+    <tr><td>GitHub Actions</td><td><code>release.yml</code> 의 <code>web</code> · <code>apk</code> · <code>apk-publish</code> 작업</td><td><code>main</code> 푸시 때 Worker·웹·APK 배포. 맥이 꺼져 있어도 된다</td><td>비밀값: R2 키, Cloudflare 토큰, 서명 키</td></tr>
+    <tr><td>Cloudflare R2</td><td>버킷 <code>easyscore-files</code> (공개 주소)</td><td>악보·곡 목록·올린 악보·APK 보관. 앱·웹이 여기서 바로 읽는다</td><td><code>scores/</code>, <code>uploads/</code>, <code>selah.apk</code>, <code>apk/</code></td></tr>
+    <tr><td>Worker + D1</td><td><code>crates/worker</code> (workers-rs)</td><td>카카오·구글 로그인, 내 악보 올리기·고치기, 즐겨찾기·콘티, 클릭 수, 관리자 고치기·짝 판정</td><td><code>users</code> <code>sessions</code> <code>favorites</code> <code>setlists</code> <code>song_owners</code> <code>song_clicks</code> <code>song_edits</code> <code>overlap_decisions</code></td></tr>
+    <tr><td>Cloudflare Pages</td><td><code>crates/web</code> (Leptos, WASM)</td><td>웹과 앱이 함께 쓰는 화면 하나(<code>app.html</code>)</td><td><code>selah-sheetmusic.pages.dev</code></td></tr>
+    <tr><td>안드로이드 앱</td><td><code>crates/app</code> (Tauri 2 껍데기)</td><td>운영 화면 띄우기, 악보 저장, <code>selah://login</code> 로그인 복귀</td><td>기기: 최근 본 곡, 마지막 조, 검색어, 테마</td></tr>
+  </tbody>
+</table></div>
+<p class="note">맥이 R2 에 쓰는 곳은 <code>scores/</code>, Worker 가 쓰는 곳은 <code>uploads/</code> 뿐입니다. 블로그 악보를 보는 데는 로그인이 필요 없고, 앱은 운영 웹 화면을 띄우므로 웹을 올리면 앱도 다음에 켤 때 최신입니다.</p>
+</div>
+
+<script>
+const NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs, parent, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return parent.appendChild(e); };
+
+// 상자. route 가 있으면 대거나 누를 때 그 흐름이 켜진다. k 는 고정폭 글줄 여러 개.
+const NODES = [
+  { id: 'blogH', x: 16, y: 96, w: 200, h: 58, t: '하수구 블로그', s: '네이버 · 워십·찬송', route: 'sync' },
+  { id: 'blogK', x: 16, y: 168, w: 200, h: 58, t: 'kamu 블로그', s: '네이버 · 워십·찬송가', route: 'sync' },
+  { id: 'orca', x: 16, y: 300, w: 200, h: 70, t: '오르카 예약', s: '평일 12시', p: 'daily-sync.sh', route: 'sync' },
+  { id: 'dev', x: 16, y: 600, w: 200, h: 70, t: '개발자', s: 'main 에 푸시·머지', p: 'git push', route: 'deploy' },
+
+  { id: 'sync', x: 290, y: 96, w: 170, h: 70, t: 'easyscore sync', s: '새 글만 · 2~3초 간격', p: 'crates/server' },
+  { id: 'db', x: 490, y: 96, w: 140, h: 70, t: 'SQLite', s: '곡 정보·겹친 짝', p: 'easyscore.db' },
+  { id: 'proc', x: 290, y: 196, w: 170, h: 84, t: '악보 다듬기', s: '판별·로고·KaMU 지우기', p: '가사 OCR · 겹침 확인' },
+  { id: 'img', x: 490, y: 196, w: 140, h: 84, t: '악보 파일', s: '화면용 · 원본', p: 'data/images' },
+  { id: 'up', x: 290, y: 320, w: 340, h: 70, t: 'upload-r2.sh', s: '고친 내용 반영 → 곡 목록 내보내기 → 올리기', p: 'export → scores/catalog.json' },
+  { id: 'bak', x: 290, y: 420, w: 340, h: 62, t: 'backup-uploads.sh', s: '올린 악보를 맥으로 백업', p: 'data/uploads/', route: 'upload' },
+
+  { id: 'gweb', x: 290, y: 600, w: 340, h: 70, t: 'web 작업', s: 'Worker(바뀌었을 때만) → 화면 빌드 → Pages', p: 'deploy-web.sh --from-r2' },
+  { id: 'gapk', x: 290, y: 682, w: 160, h: 66, t: 'apk 작업', s: '껍데기 바뀔 때만', p: 'Tauri 2 · NDK' },
+  { id: 'gpub', x: 470, y: 682, w: 160, h: 66, t: 'apk-publish', s: 'R2 에 APK 올리기', p: 'publish-apk.sh' },
+
+  { id: 'r2', x: 720, y: 90, w: 300, h: 176, t: 'R2 저장소', s: 'easyscore-files · 공개 주소로 읽음', port: true,
+    k: ['scores/catalog.json · app.json', 'scores/<수집원>/<글>/00.png', 'uploads/catalog.json · uploads/<곡>/', 'selah.apk · apk/ (최근 3개)'] },
+  { id: 'worker', x: 720, y: 310, w: 300, h: 110, t: 'Worker · 올리기·로그인', s: 'workers-rs (crates/worker)', port: true, k: ['/auth  /me  /songs  /admin', '/popularity  /edits  /sync'] },
+  { id: 'd1', x: 720, y: 460, w: 300, h: 90, t: 'D1 데이터베이스', s: '회원·세션·즐겨찾기·콘티·클릭 수', k: ['song_edits · overlap_decisions'] },
+  { id: 'pages', x: 720, y: 600, w: 300, h: 90, t: 'Pages · 웹 화면', s: 'Leptos WASM · app.html 하나', p: 'selah-sheetmusic.pages.dev', port: true },
+
+  { id: 'oauth', x: 1140, y: 96, w: 244, h: 58, t: '카카오 · 구글', s: '로그인 화면 (OAuth)', route: 'login' },
+  { id: 'browser', x: 1140, y: 190, w: 244, h: 58, t: '웹 브라우저', s: '로그인 없이 바로 보기', c: 'var(--r-view)', route: 'view' },
+  { id: 'android', x: 1140, y: 276, w: 244, h: 70, t: '안드로이드 앱', s: 'Tauri 2 껍데기 → 운영 화면', p: 'selah.apk', c: 'var(--r-app)', route: 'app' },
+  { id: 'member', x: 1140, y: 400, w: 244, h: 58, t: '회원', s: '즐겨찾기·콘티 · 허락받으면 올리기', c: 'var(--r-rec)', route: 'records' },
+  { id: 'admin', x: 1140, y: 490, w: 244, h: 58, t: '관리자', s: '곡 정보 고치기 · 겹친 짝 판정', c: 'var(--r-admin)', route: 'admin' },
+];
+// 선: 경로와 글자(위치). always 는 아무것도 고르지 않았을 때도 보이는 글자.
+const EDGES = [
+  { id: 'e1', d: 'M216,125 C252,125 254,118 290,118', label: '새 글 받기', lx: 253, ly: 92, always: true },
+  { id: 'e2', d: 'M216,197 C252,197 254,140 290,140' },
+  { id: 'e3', d: 'M216,322 C258,322 250,156 290,156', label: 'sync ×4', lx: 246, ly: 296 },
+  { id: 'e4', d: 'M216,340 C254,340 254,355 290,355' },
+  { id: 'e5', d: 'M216,352 C252,352 252,451 290,451' },
+  { id: 'e6', d: 'M375,166 L375,196' },
+  { id: 'e7', d: 'M460,131 L490,131' },
+  { id: 'e8', d: 'M460,238 L490,238' },
+  { id: 'e9', d: 'M560,280 L560,320' },
+  { id: 'e11', d: 'M630,345 C690,345 690,150 720,150', label: '악보·곡 목록', lx: 680, ly: 112, always: true },
+  { id: 'e12', d: 'M720,370 C680,370 680,378 630,378', label: '/sync/edits', lx: 676, ly: 400 },
+  { id: 'e13', d: 'M720,245 C668,245 668,456 630,456', label: 'uploads/ 백업', lx: 672, ly: 500 },
+  { id: 'e14', d: 'M216,628 C254,628 254,632 290,632', label: 'git push', lx: 253, ly: 612, always: true },
+  { id: 'e15', d: 'M216,645 C254,645 254,712 290,712' },
+  { id: 'e16', d: 'M450,713 L470,713' },
+  { id: 'e17', d: 'M630,620 C684,620 684,400 720,400', label: 'Worker 배포', lx: 680, ly: 540 },
+  { id: 'e18', d: 'M630,645 L720,645', label: '웹 배포', lx: 676, ly: 666 },
+  { id: 'e19', d: 'M630,713 C696,713 696,215 720,215', label: 'APK·app.json', lx: 676, ly: 740 },
+  { id: 'e21', d: 'M820,310 L820,266', label: 'uploads/ 쓰기', lx: 880, ly: 292 },
+  { id: 'e22', d: 'M870,420 L870,460' },
+  { id: 'e23', d: 'M1140,206 C1080,206 1080,170 1020,170', label: '곡 목록·악보', lx: 1080, ly: 160 },
+  { id: 'e24', d: 'M1140,232 C1070,232 1080,630 1020,630', label: '화면 받기', lx: 1080, ly: 590, always: true },
+  { id: 'e25', d: 'M1140,330 C1090,330 1090,660 1020,660', label: '운영 화면 띄움', lx: 1080, ly: 690 },
+  { id: 'e26', d: 'M1140,292 C1086,292 1086,215 1020,215', label: '악보·app.json', lx: 1080, ly: 254 },
+  { id: 'e27', d: 'M1140,240 C1096,240 1090,340 1020,340', label: 'API 부르기', lx: 1080, ly: 302 },
+  { id: 'e32', d: 'M1140,316 C1100,316 1094,360 1020,360' },
+  { id: 'e31', d: 'M1020,380 C1104,380 1104,338 1140,338', label: 'selah://login', lx: 1080, ly: 392 },
+  { id: 'e28', d: 'M1140,429 C1084,429 1084,392 1020,392', label: '/me · /songs', lx: 1080, ly: 444 },
+  { id: 'e29', d: 'M1140,519 C1076,519 1076,408 1020,408', label: '/admin', lx: 1080, ly: 530 },
+  { id: 'e30', d: 'M1020,322 C1110,322 1100,125 1140,125', label: '로그인 이동', lx: 1080, ly: 128 },
+];
+const ROUTES = {
+  sync: { name: '악보 수집 (평일)', color: 'var(--r-sync)',
+    n: ['orca', 'blogH', 'blogK', 'sync', 'proc', 'db', 'img', 'up', 'r2', 'worker'], e: ['e1', 'e2', 'e3', 'e4', 'e6', 'e7', 'e8', 'e9', 'e11', 'e12'],
+    text: '<b>평일 12시</b> 오르카 예약이 <code>daily-sync.sh</code> 를 돌립니다 → <code>easyscore sync</code> 가 하수구·kamu 블로그 네 곳의 새 글만 2~3초 간격으로 받습니다 → 악보 판별·로고/KaMU 지우기·가사 OCR·겹치는 곡 확인 → <code>easyscore.db</code>·<code>data/images</code> 에 저장 → <code>upload-r2.sh</code> 가 Worker 에서 관리자가 고친 내용을 먼저 받아 DB 에 넣고, 곡 목록(<code>scores/catalog.json</code>)과 악보를 R2 에 올립니다.' },
+  view: { name: '악보 보기', color: 'var(--r-view)',
+    n: ['browser', 'android', 'pages', 'r2', 'worker', 'd1'], e: ['e24', 'e25', 'e23', 'e26', 'e27', 'e32', 'e22'],
+    text: '<b>웹 브라우저·앱</b>이 Pages 에서 화면(WASM)을 받고 → R2 공개 주소에서 <code>scores/catalog.json</code>·<code>uploads/catalog.json</code> 과 악보 PNG 를 바로 읽습니다. 곡을 열면 <code>POST /songs/{id}/view</code> 로 클릭 수를 더하고, 인기순은 <code>GET /popularity</code> 로 D1 의 클릭 수를 씁니다. 로그인은 필요 없습니다.' },
+  app: { name: '앱 켜기·새 버전', color: 'var(--r-app)',
+    n: ['android', 'pages', 'r2', 'gpub'], e: ['e25', 'e26', 'e19'],
+    text: '<b>안드로이드 앱</b>의 APK 에는 시작 페이지만 들어 있습니다 → 8초 안에 운영 화면에 닿는지 확인하고 <code>selah-sheetmusic.pages.dev</code> 로 넘어갑니다. 그래서 웹을 올리면 앱도 다음에 켤 때 최신입니다. 껍데기 버전이 <code>scores/app.json</code> 의 <code>shell_version</code> 보다 낮을 때만 새 버전 안내가 뜨고 R2 의 <code>selah.apk</code> 를 받습니다.' },
+  login: { name: '로그인', color: 'var(--r-login)',
+    n: ['browser', 'android', 'worker', 'oauth', 'd1'], e: ['e27', 'e32', 'e30', 'e31', 'e22'],
+    text: '<b>로그인</b>: 화면 → Worker <code>/auth/{kakao|google}/start</code> → 카카오·구글 → <code>/auth/…/callback</code> → 앱이면 <code>selah://login</code> 딥링크로 돌아옴 → <code>POST /auth/session</code> 으로 로그인 값을 받고 D1 <code>users</code>·<code>sessions</code> 에 남습니다. 저장하는 개인정보는 표시 이름 하나입니다.' },
+  records: { name: '즐겨찾기·콘티', color: 'var(--r-rec)',
+    n: ['member', 'browser', 'android', 'worker', 'd1'], e: ['e28', 'e27', 'e32', 'e22'],
+    text: '<b>로그인한 회원</b>의 즐겨찾기·콘티는 <code>/me/favorites</code>·<code>/me/setlists</code> 로 D1 에 저장되어 웹·앱 어디서나 같게 보입니다. 로그인하는 순간 기기에만 있던 기록은 <code>POST /me/import</code> 로 계정에 옮겨집니다. 로그인하지 않으면 그 기기(브라우저)에만 저장됩니다.' },
+  upload: { name: '내 악보 올리기', color: 'var(--r-up)',
+    n: ['member', 'worker', 'r2', 'd1', 'bak', 'orca'], e: ['e28', 'e21', 'e22', 'e13', 'e5'],
+    text: '<b>관리자가 허락한 회원</b> → <code>POST /songs</code>(조 추가는 <code>/songs/{id}/keys</code>) → Worker 가 R2 <code>uploads/&lt;곡&gt;/</code> 에 사진을, <code>uploads/catalog.json</code> 에 목록을 쓰고 D1 <code>song_owners</code> 에 올린 사람을 적습니다. 누구나 바로 봅니다. 맥은 평일 수집 끝에 <code>backup-uploads.sh</code> 로 백업합니다.' },
+  admin: { name: '관리자 고치기·검토', color: 'var(--r-admin)',
+    n: ['admin', 'worker', 'd1', 'browser', 'up', 'db', 'r2'], e: ['e29', 'e22', 'e27', 'e12', 'e11'],
+    text: '<b>관리자</b>가 블로그 곡 정보를 고치면(<code>PATCH /admin/blog-songs/{id}</code>) D1 <code>song_edits</code> 에 쌓이고, 화면은 <code>GET /edits</code> 로 바로 덮어 보입니다. 겹치는 짝 판정(<code>POST /admin/overlaps/{id}</code>)은 <code>overlap_decisions</code> 에 쌓였다가, 맥의 <code>upload-r2.sh</code> 가 <code>/sync/edits</code> 로 받아 DB 에 넣고 <code>/sync/applied</code> 로 알린 뒤 다음 곡 목록에 합쳐져 나갑니다.' },
+  deploy: { name: '배포 (main 푸시)', color: 'var(--r-deploy)',
+    n: ['dev', 'gweb', 'gapk', 'gpub', 'worker', 'pages', 'r2'], e: ['e14', 'e15', 'e16', 'e17', 'e18', 'e19'],
+    text: '<b>main 에 푸시</b>하면 GitHub Actions 가 배포합니다(맥이 꺼져 있어도 됩니다). <code>web</code> 작업: Worker(바뀌었을 때만) → R2 의 곡 목록을 받아 화면 빌드(<code>--from-r2</code>) → Pages. 함께 <code>apk</code> 작업이 앱 껍데기(<code>crates/app</code>)가 바뀌었을 때만 APK 를 만들고, <code>apk-publish</code> 가 R2 에 <code>selah.apk</code>·<code>app.json</code> 을 올립니다.' },
+};
+const DEFAULT_TEXT = '위 버튼이나 그림의 상자(블로그·오르카·개발자·브라우저·앱·회원·관리자·카카오·백업)에 마우스를 대면 그 흐름이 지나는 길이 켜집니다. 누르면 고정됩니다.';
+
+const svg = document.getElementById('d'), gE = document.getElementById('edges'), gN = document.getElementById('nodes'), gL = document.getElementById('labels');
+for (const e of EDGES) {
+  el('path', { class: 'e', d: e.d, 'data-id': e.id, 'marker-end': 'url(#arrow)' }, gE);
+  if (e.label) el('text', { class: `el${e.always ? ' always' : ''}`, x: e.lx, y: e.ly, 'text-anchor': 'middle', 'data-id': e.id }, gL, e.label);
+}
+for (const n of NODES) {
+  const g = el('g', { class: `n${n.port ? ' port' : ''}`, 'data-id': n.id, ...(n.route ? { 'data-route': n.route, tabindex: 0, role: 'button' } : {}) }, gN);
+  if (n.c) g.style.setProperty('--nc', n.c);
+  el('rect', { x: n.x, y: n.y, width: n.w, height: n.h, rx: 12 }, g);
+  const lines = [['t', n.t], ['s', n.s], ['p', n.p], ...(n.k || []).map(k => ['k', k])].filter(l => l[1]);
+  const step = 19, top = n.y + n.h / 2 - (lines.length - 1) * step / 2 + 5;
+  lines.forEach(([cls, text], i) => el('text', { class: cls, x: n.x + 14, y: top + i * step }, g, text));
+}
+const chips = document.getElementById('routes'), caption = document.getElementById('caption');
+chips.innerHTML = Object.entries(ROUTES).map(([id, r]) => `<button type="button" id="route-${id}" data-route="${id}" style="--rc:${r.color}">${r.name}</button>`).join('');
+
+let pinned = null;
+function light(id) {
+  const r = ROUTES[id];
+  svg.classList.toggle('pick', !!r);
+  svg.style.setProperty('--rc', r ? r.color : '');
+  for (const g of svg.querySelectorAll('.n')) g.classList.toggle('hot', !!r && r.n.includes(g.dataset.id));
+  for (const p of svg.querySelectorAll('.e, .el')) p.classList.toggle('hot', !!r && r.e.includes(p.dataset.id));
+  for (const b of chips.children) b.classList.toggle('on', b.dataset.route === id);
+  caption.innerHTML = r ? r.text : DEFAULT_TEXT;
+}
+for (const t of [...chips.children, ...svg.querySelectorAll('.n[data-route]')]) {
+  t.addEventListener('pointerenter', () => light(t.dataset.route));
+  t.addEventListener('pointerleave', () => light(pinned));
+  t.addEventListener('focus', () => light(t.dataset.route));
+  t.addEventListener('blur', () => light(pinned));
+  t.addEventListener('click', () => { pinned = pinned === t.dataset.route ? null : t.dataset.route; light(pinned); });
+  t.addEventListener('keydown', ev => { if (t.tagName !== 'BUTTON' && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); t.click(); } });
+}
+light(null);
+</script>
+</body></html>
